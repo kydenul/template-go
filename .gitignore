@@ -1,0 +1,49 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+
+# Test binary
+*.test
+
+# Coverage
+*.out
+coverage.html
+
+# Go workspace
+go.work
+go.work.sum
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# IDE
+.idea/
+.vscode/
+.claude/
+*.swp
+*.swo
+*~
+CLAUDE.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (for git hooks)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build artifacts
+*.pid
+*.perf
