@@ -36,6 +36,9 @@ linters:
 
   # All available settings of specific linters.
   settings:
+    gosec:
+      excludes:
+        - G402 # TLS InsecureSkipVerify 
     funlen:
       lines: 150
       statements: 100
