@@ -4,47 +4,68 @@ linters:
   # Enable specific linter.
   enable:
     - asciicheck # Checks that all code identifiers does not have non-ASCII symbols in the name. [fast]
+    - bidichk # 检测危险的 unicode 双向字符序列
     - bodyclose # Checks whether HTTP response body is closed successfully.
+    - canonicalheader # 检查 net/http.Header 是否使用规范写法
     - containedctx # Containedctx is a linter that detects struct contained context.Context field.
     - contextcheck # Check whether the function uses a non-inherited context.
     - copyloopvar # A linter detects places where loop variables are copied. [fast, auto-fix]
     - cyclop # Checks function and package cyclomatic complexity. [fast]
-    - dupl # Detects duplicate fragments of code.
-    - errcheck # Errcheck is a program for checking for unchecked errors in Go code. These unchecked errors can be critical bugs in some cases
+    - depguard # 限制不建议使用的包(见下方 settings)
+    - durationcheck # 检测两个 duration 相乘的错误用法
+    - errcheck # Errcheck is a program for checking for unchecked errors in Go code.
+    - errname # 检查哨兵错误以 Err 为前缀、error 类型以 Error 为后缀
+    - errorlint # 检查 Go 1.13+ 错误包装范式相关问题。新增,常见现代 Go 项目标配。
+    - exptostd # 检查可从 golang.org/x/exp 迁移到标准库的用法 [fast, auto-fix]
+    - fatcontext # 检测循环内累积的 context(如 ctx = context.WithValue(ctx,...)),零成本防泄漏
     - funlen # Checks for long functions. [fast]
     - goconst # Finds repeated strings that could be replaced by a constant.
-    - gocyclo # Computes and checks the cyclomatic complexity of functions. [fast]
+    - gocritic # golangci-lint 社区推荐的扩展静态检查集合(exitAfterDefer/dupBranchBody/ifElseChain 等)
     - goprintffuncname # Checks that printf-like functions are named with `f` at the end. [fast]
     - gosec # Inspects source code for security problems.
-    - govet # Vet examines Go source code and reports suspicious constructs. It is roughly the same as 'go vet' and uses its passes. [auto-fix]
+    - govet # Vet examines Go source code and reports suspicious constructs. [auto-fix]
     - ineffassign # Detects when assignments to existing variables are not used. [fast]
-    - iface # Detect the incorrect use of interfaces, helping developers avoid interface pollution. [auto-fix]
+    - iface # Detect the incorrect use of interfaces. [auto-fix]
+    - intrange # 建议 for i := 0; i < n; i++ 改写为 for i := range n(Go 1.22+) [fast, auto-fix]
     - lll # Reports long lines. [fast]
+    - mirror # 检查 bytes/strings 误用的镜像 API
     - misspell # Finds commonly misspelled English words. [fast, auto-fix]
     - makezero # Finds slice declarations with non-zero initial length.
     - nilerr # Finds the code that returns nil even if it checks that the error is not nil.
-    - revive # Fast, configurable, extensible, flexible, and beautiful linter for Go. Drop-in replacement of golint. [auto-fix]
-    - rowserrcheck # Checks whether Rows.Err of rows is checked successfully.
-    - staticcheck # It's the set of rules from staticcheck. [auto-fix]
+    - nilnesserr # 检查判断了 err != nil 却返回了另一个 nil 错误值的情况
+    # - nilnil # 与仓储层"查询未命中返回 (nil, nil)"、driver.Valuer 返回 (nil, nil) 表示 NULL 的约定冲突
+    - noctx # 检查未使用 context.Context 发送 HTTP 请求的情况
+    - nolintlint # 要求 //nolint 注释必须写明原因并指明具体 linter
     - perfsprint # Checks that fmt.Sprintf can be replaced with a faster alternative. [auto-fix]
     - prealloc # Finds slice declarations that could potentially be pre-allocated. [fast]
+    - predeclared # 检查代码是否遮蔽了 Go 预声明标识符
+    - revive # Fast, configurable, extensible, flexible, and beautiful linter for Go. [auto-fix]
+    - rowserrcheck # Checks whether Rows.Err of rows is checked successfully.
+    - sqlclosecheck # 检查 sql.Rows / sql.Stmt 是否被正确关闭
+    - sloglint # 检查 slog 的结构化日志规范(当前未使用 slog,为零成本预留;depguard 已指向 slog 方向)
+    - staticcheck # It's the set of rules from staticcheck. [auto-fix]
     - tagalign # Check that struct tags are well aligned. [fast, auto-fix]
     - unconvert # Remove unnecessary type conversions.
     - unparam # Reports unused function parameters.
     - unused # Checks Go code for unused constants, variables, functions and types.
-    - whitespace # Whitespace is a linter that checks for unnecessary newlines at the start and end of functions, if, for, etc. [fast, auto-fix]
+    - wastedassign # 检查无用的赋值语句
+    - whitespace # Whitespace linter. [fast, auto-fix]
+    # - mnd            # 魔法数字检测,初次引入报错量可能很大,需要先配置 ignored-functions
+    # - testifylint    # 如项目使用 testify,建议单独开启验证
 
   # All available settings of specific linters.
   settings:
     gosec:
       excludes:
-        - G402 # TLS InsecureSkipVerify 
+        - G402 # TLS InsecureSkipVerify
+    govet:
+      enable:
+        - shadow # 变量遮蔽检查(非默认 vet 检查,显式开启)
     funlen:
       lines: 150
       statements: 100
     goconst:
       min-len: 5
-      min-occurrences: 3
     lll:
       line-length: 120
     cyclop:
@@ -52,86 +73,131 @@ linters:
     errcheck:
       check-type-assertions: true
       check-blank: false
-      disable-default-exclusions: false
       exclude-functions:
         - (io.Closer).Close
         - (*os.File).Close
-        - (redis.Conn).Close
+        - (*github.com/redis/go-redis/v9.Conn).Close
         - os.Remove
-        - os.ReadFile  # Replace deprecated io/ioutil.ReadFile
+        - os.ReadFile # Successor to deprecated ioutil.ReadFile
         - io.Copy(*bytes.Buffer)
         - io.Copy(os.Stdout)
+        # HTTP 响应写出:错误已无处理手段(连接已断客户端收不到任何补救),仓库惯例 _, _ = w.Write
+        - (net/http.ResponseWriter).Write
+        # 进程收尾 flush:main 退出路径尽力刷新,失败无补救手段(进程即将退出)
+        - git.woa.com/kydenlu/aura/log.Sync
+    depguard:
+      # 新增:限制已弃用 / 不推荐使用的包,参考 golden config。
+      rules:
+        "deprecated":
+          files:
+            - "$all"
+          deny:
+            - pkg: github.com/golang/protobuf
+              desc: Use google.golang.org/protobuf instead
+            - pkg: github.com/satori/go.uuid
+              desc: Use github.com/google/uuid instead, satori's package is not maintained
+        "non-test files":
+          files:
+            - "!$test"
+          deny:
+            - pkg: math/rand$
+              desc: Use math/rand/v2 instead, see https://go.dev/blog/randv2
+        "non-main files":
+          files:
+            - "!**/main.go"
+          deny:
+            - pkg: log$
+              desc: Use log/slog instead, see https://go.dev/blog/slog
+    nolintlint:
+      allow-no-explanation: [funlen, cyclop]
+      require-explanation: true
+      require-specific: true
     revive:
       severity: error # warning # error
       enable-all-rules: false
       rules:
-        - name: blank-imports          # 禁止空导入 (`.`)
-        - name: increment-decrement    # 强制使用 `i++` 和 `i--`
-        - name: superfluous-else       # 避免多余的 `else` 语句 (可以与 `if` 块一起缩进)
-        - name: empty-block            # 警告空的代码块
-        - name: if-return              # 简化 `if` 语句后的 `return`
-        - name: unexported-return      # 警告公共函数返回未导出类型
-        - name: context-as-argument    # 强制 `context.Context` 作为函数第一个参数
-        - name: error-return           # 强制错误返回值是最后一个
-        - name: empty-lines            # 检查代码块开头或结尾多余的空行
-        - name: unreachable-code       # 警告不可达代码
-        - name: var-naming             # 检查变量命名规范
-        - name: unused-parameter       # 建议重命名或删除未使用的函数参数
+        - name: blank-imports # Disallow blank imports (`.`)
+        - name: increment-decrement # Enforce `i++` and `i--` syntax
+        - name: superfluous-else # Avoid unnecessary `else` blocks after an `if` that breaks flow
+        - name: empty-block # Warn on empty code blocks
+        - name: if-return # Simplify redundant `return` after `if` statements
+        - name: unexported-return # Warn when exported functions return unexported types
+        - name: context-as-argument # Enforce `context.Context` as the first function argument
+        - name: error-return # Enforce error values as the last return value
+        - name: empty-lines # Detect superfluous blank lines at the start or end of blocks
+        - name: unreachable-code # Warn on unreachable code
+        - name: var-naming # Enforce Go variable naming conventions
+        - name: unused-parameter # Suggest renaming or removing unused function parameters
           arguments:
-            - allow-regex: "^_"         # 允许以 `_` 开头的参数不被使用
-        - name: errorf                  # 建议将 `errors.New(fmt.Sprintf())` 替换为 `fmt.Errorf()`
-        - name: time-equal              # 建议使用 `time.Time.Equal` 比较时间
-        - name: time-naming             # 检查 `time.Time` 命名规范
-        - name: redefines-builtin-id    # 警告重新定义内置标识符
-        # - name: package-comments        # 强制包注释
-        - name: unused-receiver         # 检查未使用的接收器
-        - name: bare-return             # 警告裸返回
-        - name: defer                   # 检查 `defer` 语句
-        - name: early-return            # 检查早期返回
-        - name: optimize-operands-order # 优化操作数顺序
-        - name: receiver-naming         # 检查接收器命名规范
-        - name: use-any                 # 使用 `any` 替代 `interface{}`
+            - allow-regex: "^_" # Allow unused parameters prefixed with `_`
+        - name: errorf # Suggest replacing `errors.New(fmt.Sprintf())` with `fmt.Errorf()`
+        - name: time-equal # Suggest using `time.Time.Equal` for time comparisons
+        - name: time-naming # Enforce naming conventions for `time.Time` variables
+        - name: redefines-builtin-id # Warn when redefining built-in identifiers
+        - name: bare-return # Warn on bare (naked) return statements
+        - name: defer # Check for common mistakes in `defer` usage
+        - name: early-return # Encourage early returns to reduce nesting
+        - name: optimize-operands-order # Suggest optimal operand ordering in expressions
+        - name: receiver-naming # Enforce consistent receiver naming conventions
+        - name: use-any # Prefer `any` over `interface{}`
 
   # Defines a set of rules to ignore issues.
   # It does not skip the analysis, and so does not ignore "typecheck" errors.
   exclusions:
     # Log a warning if an exclusion rule is unused.
     warn-unused: true
+    presets:
+      - std-error-handling
+      - common-false-positives
+    # 测试文件整体不参与 lint。
+    # 注意：v2 的 rules[].linters 不认 "all" 这个 linter 名，写了会让整条规则静默失效，
+    # 因此必须走 exclusions.paths（对所有 linter 生效）。
+    paths:
+      - _test\.go
+      # protobuf 生成代码（protoc-gen-go 产物，见 Makefile proto 目标）不参与
+      # lint——生成物保持 protoc 原样，格式由上游保证；typecheck 仍覆盖（编译错误可暴露）。
+      - .*\.pb\.go$
     # Excluding configuration per-path, per-linter, per-text and per-source.
     rules:
-      # Exclude some linters from running on tests files.
-      - path: _test\.go
+      # GORM 模型文件中的 struct tag 本质较长(column/type/index/comment 等), 拆分会破坏可读性,因此豁免 lll 检查。
+      - path: biz/models/.*\.go
         linters:
-          - all
-          - errcheck
-          - unused
-          - gosec
           - lll
-          - revive
-          - perfsprint
-          - unparam
-          - dupl
-          - goconst
-          - golines
-          - cyclop
-          - govet
-          - ineffassign
-          - prealloc
+      # errcheck 泛化消息(无函数名):全部为 ctx.Value 两值断言降级取值的仓库惯例
+      # (v, _ := ctx.Value(k).(T),失败取零值);此类断言静默降级即语义,不构成错误丢弃。
+      # 极少数函数值调用(诊断日志路径)同样被覆盖,新增代码应优先具名处理。
+      - text: "^Error return value is not checked$"
+        linters:
+          - errcheck
+
+issues:
+  # 全量显示问题:默认 max-issues-per-linter: 50 / max-same-issues: 3 会截断同类问题
+  # (实测 19 个文件的 gci 违规只报了 3 条)。设 0 = 不限制,修复进度不被假象误导。
+  max-issues-per-linter: 0
+  max-same-issues: 0
 
 formatters:
   enable:
-    - goimports # Checks if the code and import statements are formatted according to the 'goimports' command.
-    - golines # Checks if code is formatted, and fixes long lines.
+    - gofumpt # Enforce a stricter format than gofmt, while being backwards compatible.
+    - gci # Gci controls the order of Go imports, always deterministic.
+
   settings:
-    gofmt:
-      simplify: false
-      rewrite-rules:
-        - pattern: interface{}
-          replacement: any
-        - pattern: a[b:len(a)]
-          replacement: a[b:]
+    gci:
+      sections:
+        - standard # 标准库
+        - default # 第三方包
+        - blank # 空导入(当前仅 stdlib embed,未来新增时自动独立成组)
+        - dot # 点导入(当前为 0,revive blank-imports 规则同时限制)
+        - localmodule # 本地模块(自动从 go.mod 发现,无需硬编码前缀)
+    gofumpt:
+      module-path: template-go
+      extra:
+        group-params: true # func(a string, b string) -> func(a, b string)
+        clothe-returns: true # return -> return err
+        balance-calls: true
 
 run:
   timeout: 5m
   allow-parallel-runners: true
   allow-serial-runners: true
+
