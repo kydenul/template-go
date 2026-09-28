@@ -23,8 +23,8 @@ func RedisInit(configPath string) error {
 		viper.SetConfigName("config")
 		viper.SetConfigType("yaml")
 
-		if err := viper.ReadInConfig(); err != nil {
-			log.Fatalf("failed to read config: %v", err)
+		if readErr := viper.ReadInConfig(); readErr != nil {
+			log.Fatalf("failed to read config: %v", readErr)
 		}
 
 		host := viper.GetString("Redis.host")

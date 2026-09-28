@@ -6,10 +6,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kydenul/log"
+
 	"github.com/kydenul/template-go/internal/pb"
 	"github.com/kydenul/template-go/internal/stores"
 	ratelimit "github.com/kydenul/template-go/pkg/rate_limit"
 )
+
+// messageKey 统一健康检查与限流响应 JSON 中的消息字段键名。
+const messageKey = "message"
 
 type Server struct {
 	BaseServer
@@ -22,12 +26,12 @@ func NewServer(baseSvr BaseServer) *Server {
 func (*Server) RedisHealthHandler(c *gin.Context) {
 	if err := stores.Rdb.Ping(context.Background()).Err(); err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"message": "Redis unhealthy",
+			messageKey: "Redis unhealthy",
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "OK"})
+	c.JSON(http.StatusOK, gin.H{messageKey: "OK"})
 }
 
 func (*Server) RateLimiterMetricsHandler(c *gin.Context) {
@@ -41,12 +45,12 @@ func (svr *Server) APIDataHandler(c *gin.Context) {
 	allowed, reason := svr.RateLimiter.CheckMultiDimensional(c, userID, userIP, "api/data")
 	if !allowed {
 		c.JSON(http.StatusTooManyRequests, gin.H{
-			"message": "Rate limit exceeded: " + reason,
+			messageKey: "Rate limit exceeded: " + reason,
 		})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "OK"})
+	c.JSON(http.StatusOK, gin.H{messageKey: "OK"})
 }
 
 func (svr *Server) UserHandler(c *gin.Context) {

@@ -2,8 +2,9 @@ package service
 
 import (
 	"github.com/gin-gonic/gin"
-	ratelimit "github.com/kydenul/template-go/pkg/rate_limit"
 	"github.com/redis/go-redis/v9"
+
+	ratelimit "github.com/kydenul/template-go/pkg/rate_limit"
 )
 
 type BaseServer struct {

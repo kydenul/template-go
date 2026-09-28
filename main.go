@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kydenul/log"
+
 	"github.com/kydenul/template-go/internal/middleware"
 	"github.com/kydenul/template-go/internal/service"
 	"github.com/kydenul/template-go/internal/stores"
